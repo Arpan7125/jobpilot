@@ -5,6 +5,7 @@ The API applies pending migrations on startup (goose, embedded in the binary).
 
 ```
 users 1──* jobs 1──1 applications 1──* application_status_history
+                                 └────* reminders
 ```
 
 | Table | What a row is | Key columns |
@@ -13,6 +14,7 @@ users 1──* jobs 1──1 applications 1──* application_status_history
 | `jobs` | A posting you pasted | `user_id`, `company`, `title`, `platform`, `description` (raw text), `salary_min/max`, `currency`, `parsed` (JSONB for the Week 2 parser) |
 | `applications` | Your pursuit of one job | `job_id` (unique), `status`, `applied_at`, `status_changed_at`, `notes` |
 | `application_status_history` | One status change | `application_id`, `from_status` (null on first row), `to_status`, `changed_at`, `note` |
+| `reminders` | A follow-up nudge | `application_id`, `reason`, `created_at`, `dismissed_at` (null while open) |
 
 `status` is a Postgres enum: `saved, applied, replied, interview, offer, rejected, withdrawn`.
 
@@ -29,6 +31,10 @@ users 1──* jobs 1──1 applications 1──* application_status_history
   a history row in one transaction, with the application row locked
   (`FOR UPDATE`). The funnel and time-between-stages views (Day 16) read history.
 - **`applied_at` is set once,** the first time an application reaches `applied`.
-- **`status_changed_at` drives reminders.** Day 6's job selects `applied` rows
-  older than 7 days, served by the `(status, status_changed_at)` index.
+- **`status_changed_at` drives reminders.** The follow-up job (in the API process,
+  at startup and every 24 hours) adds a reminder to each `applied` row older
+  than 7 days, served by the `(status, status_changed_at)` index. A partial
+  unique index allows one open reminder per application, a dismissed reminder
+  does not return until the status changes again, and any status change closes
+  the open one. The job is idempotent, so restarts or extra runs are harmless.
 - **Database checks back up the API:** non-negative salaries, `salary_min <= salary_max`.

@@ -307,3 +307,79 @@ func TestUsersCannotSeeEachOthersJobs(t *testing.T) {
 		t.Errorf("alice's job changed: %d %+v", code, job)
 	}
 }
+
+// backdate pretends the job's application entered its status `days` days ago.
+func backdate(t *testing.T, jobID string, days int) {
+	t.Helper()
+	_, err := testPool.Exec(context.Background(),
+		`UPDATE applications SET status_changed_at = now() - make_interval(days => $2) WHERE job_id = $1`, jobID, days)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFollowUpReminders(t *testing.T) {
+	ctx := context.Background()
+	st := store.New(testPool)
+	c, other := signedIn(t), signedIn(t)
+
+	var stale, fresh, saved store.Job
+	c.do("POST", "/jobs", validJob(), &stale)
+	c.do("POST", "/jobs", validJob(), &fresh)
+	c.do("POST", "/jobs", validJob(), &saved)
+	c.do("PUT", "/jobs/"+stale.ID+"/status", map[string]string{"status": "applied"}, nil)
+	c.do("PUT", "/jobs/"+fresh.ID+"/status", map[string]string{"status": "applied"}, nil)
+	backdate(t, stale.ID, 8)
+	backdate(t, fresh.ID, 6)
+	backdate(t, saved.ID, 30) // old but never applied
+
+	if _, err := st.FlagStaleApplications(ctx, store.FollowUpAfter); err != nil {
+		t.Fatal(err)
+	}
+	// Running again must not add duplicates.
+	if _, err := st.FlagStaleApplications(ctx, store.FollowUpAfter); err != nil {
+		t.Fatal(err)
+	}
+
+	var reminders []store.Reminder
+	c.do("GET", "/reminders", nil, &reminders)
+	if len(reminders) != 1 || reminders[0].JobID != stale.ID {
+		t.Fatalf("reminders = %+v, want one for the stale job", reminders)
+	}
+	var job store.Job
+	c.do("GET", "/jobs/"+stale.ID, nil, &job)
+	if !job.FollowUpDue {
+		t.Error("stale job not marked followUpDue")
+	}
+
+	var others []store.Reminder
+	other.do("GET", "/reminders", nil, &others)
+	if len(others) != 0 {
+		t.Errorf("other user sees %d reminders", len(others))
+	}
+	if code := other.do("POST", "/reminders/"+reminders[0].ID+"/dismiss", nil, nil); code != 404 {
+		t.Errorf("other user dismiss = %d, want 404", code)
+	}
+
+	if code := c.do("POST", "/reminders/"+reminders[0].ID+"/dismiss", nil, nil); code != 204 {
+		t.Fatalf("dismiss = %d", code)
+	}
+	st.FlagStaleApplications(ctx, store.FollowUpAfter)
+	c.do("GET", "/reminders", nil, &reminders)
+	if len(reminders) != 0 {
+		t.Errorf("dismissed reminder came back: %+v", reminders)
+	}
+
+	// A status change closes the open reminder.
+	backdate(t, fresh.ID, 9)
+	st.FlagStaleApplications(ctx, store.FollowUpAfter)
+	c.do("GET", "/reminders", nil, &reminders)
+	if len(reminders) != 1 || reminders[0].JobID != fresh.ID {
+		t.Fatalf("reminders = %+v, want one for the second job", reminders)
+	}
+	c.do("PUT", "/jobs/"+fresh.ID+"/status", map[string]string{"status": "replied"}, nil)
+	c.do("GET", "/reminders", nil, &reminders)
+	if len(reminders) != 0 {
+		t.Errorf("reply did not close the reminder: %+v", reminders)
+	}
+}

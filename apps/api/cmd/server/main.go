@@ -46,10 +46,13 @@ func run() error {
 		return err
 	}
 
+	st := store.New(pool)
+	go flagFollowUps(ctx, st, 24*time.Hour)
+
 	origins := strings.Split(envOr("CORS_ORIGINS", "http://localhost:3000"), ",")
 	srv := &http.Server{
 		Addr:              ":" + envOr("PORT", "4000"),
-		Handler:           httpapi.New(store.New(pool), tokens, origins).Handler(),
+		Handler:           httpapi.New(st, tokens, origins).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -65,6 +68,26 @@ func run() error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		return srv.Shutdown(shutdownCtx)
+	}
+}
+
+// flagFollowUps runs the follow-up reminder job at startup and then every
+// interval. The job is idempotent, so restarts and overlapping runs are harmless.
+func flagFollowUps(ctx context.Context, st *store.Store, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		n, err := st.FlagStaleApplications(ctx, store.FollowUpAfter)
+		if err != nil {
+			slog.Error("follow-up job failed", "err", err)
+		} else {
+			slog.Info("follow-up job finished", "new_reminders", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 

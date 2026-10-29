@@ -26,6 +26,7 @@ export type Job = {
   appliedAt: string | null;
   statusChangedAt: string;
   notes: string | null;
+  followUpDue: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -35,6 +36,15 @@ export type StatusChange = {
   toStatus: Status;
   changedAt: string;
   note: string | null;
+};
+
+export type Reminder = {
+  id: string;
+  jobId: string;
+  company: string;
+  title: string;
+  reason: string;
+  createdAt: string;
 };
 
 export type User = { id: string; email: string; name: string | null };

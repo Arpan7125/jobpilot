@@ -58,6 +58,8 @@ All bodies are JSON. Everything except `/health` and `/auth/*` needs
 | DELETE | `/jobs/{id}` | Delete the job, its application and history |
 | PUT | `/jobs/{id}/status` | `{status, note?}`; `409` if unchanged |
 | GET | `/jobs/{id}/history` | Status changes, oldest first |
+| GET | `/reminders` | Open follow-up reminders (applied 7+ days, no change) |
+| POST | `/reminders/{id}/dismiss` | Dismiss a reminder |
 
 Job fields: `company`, `title`, `description` (required), `location`, `url`
 (http/https), `platform`, `salaryMin`, `salaryMax`, `currency` (3 letters), `notes`.

@@ -29,6 +29,7 @@ type Job struct {
 	AppliedAt       *time.Time `json:"appliedAt"`
 	StatusChangedAt time.Time  `json:"statusChangedAt"`
 	Notes           *string    `json:"notes"`
+	FollowUpDue     bool       `json:"followUpDue"` // has an open reminder
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`
 }
@@ -42,7 +43,9 @@ type StatusChange struct {
 
 const jobColumns = `j.id, j.company, j.title, j.location, j.url, j.platform, j.description,
 	j.salary_min, j.salary_max, j.currency,
-	a.status, a.applied_at, a.status_changed_at, a.notes, j.created_at, j.updated_at`
+	a.status, a.applied_at, a.status_changed_at, a.notes,
+	EXISTS (SELECT 1 FROM reminders r WHERE r.application_id = a.id AND r.dismissed_at IS NULL),
+	j.created_at, j.updated_at`
 
 const jobFrom = ` FROM jobs j JOIN applications a ON a.job_id = j.id `
 
@@ -50,7 +53,7 @@ func scanJob(row pgx.Row) (Job, error) {
 	var j Job
 	err := row.Scan(&j.ID, &j.Company, &j.Title, &j.Location, &j.URL, &j.Platform, &j.Description,
 		&j.SalaryMin, &j.SalaryMax, &j.Currency,
-		&j.Status, &j.AppliedAt, &j.StatusChangedAt, &j.Notes, &j.CreatedAt, &j.UpdatedAt)
+		&j.Status, &j.AppliedAt, &j.StatusChangedAt, &j.Notes, &j.FollowUpDue, &j.CreatedAt, &j.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Job{}, ErrNotFound
 	}
@@ -140,7 +143,8 @@ func (s *Store) UpdateJob(ctx context.Context, userID, jobID string, f JobFields
 	return s.Job(ctx, userID, jobID)
 }
 
-// SetStatus moves the application to a new status and records the change.
+// SetStatus moves the application to a new status, records the change and
+// closes any open follow-up reminder.
 // applied_at is set the first time the application reaches 'applied'.
 func (s *Store) SetStatus(ctx context.Context, userID, jobID, status string, note *string) (Job, error) {
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -165,9 +169,14 @@ func (s *Store) SetStatus(ctx context.Context, userID, jobID, status string, not
 			 WHERE id = $1`, appID, status); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx,
+		if _, err := tx.Exec(ctx,
 			`INSERT INTO application_status_history (application_id, from_status, to_status, note)
-			 VALUES ($1, $2, $3, $4)`, appID, current, status, note)
+			 VALUES ($1, $2, $3, $4)`, appID, current, status, note); err != nil {
+			return err
+		}
+		// Any status change answers an open follow-up reminder.
+		_, err = tx.Exec(ctx,
+			`UPDATE reminders SET dismissed_at = now() WHERE application_id = $1 AND dismissed_at IS NULL`, appID)
 		return err
 	})
 	if err != nil {

@@ -112,3 +112,8 @@ export async function deleteJob(id: string) {
   revalidatePath("/");
   redirect("/");
 }
+
+export async function dismissReminder(id: string) {
+  await api(`/reminders/${id}/dismiss`, { method: "POST" });
+  revalidatePath("/");
+}
