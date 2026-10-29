@@ -1,0 +1,96 @@
+// JobPilot database schema (Week 1, Day 1).
+//
+// users 1─* jobs 1─1 applications 1─* application_status_history
+//
+// A Job is the posting you pasted. An Application is your pursuit of it and
+// holds the current status. Every status change also writes a history row,
+// which is what the Week 3 funnel and time-between-stages views read from.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ApplicationStatus {
+  SAVED      // posting saved, not applied yet
+  APPLIED
+  REPLIED    // any response from the company (recruiter email, screen invite)
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN  // you pulled out
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique // stored lowercased by the API
+  passwordHash String   @map("password_hash")
+  name         String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  jobs Job[]
+
+  @@map("users")
+}
+
+model Job {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  company     String
+  title       String
+  location    String?
+  url         String?
+  platform    String? // where you found it: LinkedIn, Internshala, referral... (Week 3 filter)
+  description String // the raw posting text you pasted
+  salaryMin   Int?     @map("salary_min")
+  salaryMax   Int?     @map("salary_max")
+  currency    String?  @db.Char(3)
+  // Structured output of the Week 2 posting parser (role, skills, experience...).
+  parsed      Json?    @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application Application?
+
+  @@index([userId, createdAt])
+  @@map("jobs")
+}
+
+model Application {
+  id             String            @id @default(uuid()) @db.Uuid
+  jobId          String            @unique @map("job_id") @db.Uuid
+  status         ApplicationStatus @default(SAVED)
+  appliedAt      DateTime?         @map("applied_at") @db.Timestamptz
+  // Last time the status changed; the Day 6 reminder job flags APPLIED rows
+  // whose status_changed_at is older than 7 days.
+  statusChangedAt DateTime         @default(now()) @map("status_changed_at") @db.Timestamptz
+  notes          String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  job     Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  history ApplicationStatusHistory[]
+
+  @@index([status, statusChangedAt])
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String             @id @default(uuid()) @db.Uuid
+  applicationId String             @map("application_id") @db.Uuid
+  fromStatus    ApplicationStatus? @map("from_status") // null for the first row
+  toStatus      ApplicationStatus  @map("to_status")
+  changedAt     DateTime           @default(now()) @map("changed_at") @db.Timestamptz
+  note          String?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, changedAt])
+  @@map("application_status_history")
+}
