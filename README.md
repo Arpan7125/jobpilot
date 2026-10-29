@@ -11,6 +11,16 @@ resumes for your approval. Built over four weeks; this is Week 1 (full-stack fou
 
 Schema design: [docs/schema.md](docs/schema.md).
 
+![Status board](docs/screenshots/board.png)
+
+## How auth works
+
+The Go API issues a 24-hour HS256 JWT on sign-up and login. The Next.js app
+never hands that token to browser JavaScript: server actions call the API and
+store the token in an `httpOnly`, `SameSite=Lax` cookie (`Secure` in
+production), then forward it as a bearer token on every server-side API call.
+An expired or missing token sends you back to `/login`.
+
 ## Run locally
 
 Needs Go 1.26+, Node 22+ and Docker (or any Postgres 16 on `localhost:5432`).
@@ -24,6 +34,10 @@ make test                             # unit + API tests against jobpilot_test
 
 cd ../.. && npm install && npm run dev:web   # http://localhost:3000
 ```
+
+The web app reads `API_URL` (default `http://localhost:4000`). With both apps
+running, `node apps/web/e2e/smoke.cjs` drives the main flows in a real browser
+(sign up, add, move on the board, edit, delete, log out, log in).
 
 ## API
 
