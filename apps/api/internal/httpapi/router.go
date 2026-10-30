@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/Arpan7125/jobpilot/apps/api/internal/agent"
 	"github.com/Arpan7125/jobpilot/apps/api/internal/auth"
 	"github.com/Arpan7125/jobpilot/apps/api/internal/store"
 )
@@ -18,16 +19,34 @@ type Server struct {
 	store       *store.Store
 	tokens      *auth.Tokens
 	corsOrigins []string
+	parser      agent.Parser // nil when ANTHROPIC_API_KEY is not set
 }
 
-func New(s *store.Store, t *auth.Tokens, corsOrigins []string) *Server {
-	return &Server{store: s, tokens: t, corsOrigins: corsOrigins}
+func New(s *store.Store, t *auth.Tokens, corsOrigins []string, parser agent.Parser) *Server {
+	return &Server{store: s, tokens: t, corsOrigins: corsOrigins, parser: parser}
+}
+
+// Model calls take longer than plain CRUD, so they get their own deadline.
+const (
+	requestTimeout = 15 * time.Second
+	modelTimeout   = 90 * time.Second
+)
+
+func timeouts(next http.Handler) http.Handler {
+	short, long := middleware.Timeout(requestTimeout)(next), middleware.Timeout(modelTimeout)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/parse") {
+			long.ServeHTTP(w, r)
+			return
+		}
+		short.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
-	r.Use(middleware.Timeout(15 * time.Second))
+	r.Use(timeouts)
 	r.Use(s.cors)
 
 	r.Get("/health", s.health)
@@ -50,6 +69,7 @@ func (s *Server) Handler() http.Handler {
 				r.Delete("/", s.deleteJob)
 				r.Put("/status", s.setStatus)
 				r.Get("/history", s.history)
+				r.Post("/parse", s.parseJob)
 			})
 		})
 	})

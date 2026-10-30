@@ -27,8 +27,26 @@ export type Job = {
   statusChangedAt: string;
   notes: string | null;
   followUpDue: boolean;
+  parsed: ParsedPosting | null;
+  parsedAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+// What the posting parser extracted. Fields the posting doesn't state are
+// null, empty or "unknown".
+export type ParsedPosting = {
+  role: string;
+  company: string | null;
+  seniority: "intern" | "entry" | "mid" | "senior" | "lead" | "unknown";
+  employmentType: "full_time" | "part_time" | "internship" | "contract" | "unknown";
+  requiredSkills: string[];
+  preferredSkills: string[];
+  experienceYears: { min: number | null; max: number | null };
+  pay: { min: number | null; max: number | null; currency: string | null; period: "hour" | "month" | "year" | "total" | "unknown" };
+  locations: string[];
+  workMode: "onsite" | "hybrid" | "remote" | "unknown";
+  degree: string | null;
 };
 
 export type StatusChange = {
