@@ -45,3 +45,8 @@ users 1──* jobs 1──1 applications 1──* application_status_history
 - **`model_calls` logs every LLM request:** user, job, feature, model that
   answered, token counts, latency, success and error text. Jobs deleted later
   keep their call rows (`job_id` set to null) so cost totals stay correct.
+- **`profiles` is one row per user** (Day 9): skills, experience, locations,
+  accepted work modes, minimum pay with its currency and period. Skills are
+  stored as the user typed them; the app never adds one. Fit scores are not
+  stored: they are computed from `jobs.parsed` and the profile on every read,
+  so editing the profile updates every score at once.

@@ -91,7 +91,16 @@ func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, jobs)
+	prof, err := s.store.Profile(r.Context(), userID(r))
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	views := make([]jobView, len(jobs))
+	for i, j := range jobs {
+		views[i] = withFit(j, prof)
+	}
+	writeJSON(w, http.StatusOK, views)
 }
 
 func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +117,7 @@ func (s *Server) createJob(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, job)
+	writeJSON(w, http.StatusCreated, jobView{Job: job}) // not parsed yet, so no fit
 }
 
 func (s *Server) getJob(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +193,8 @@ func (s *Server) deleteJob(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// respondJob writes a job, a 404 for a missing or someone else's job, or a 500.
+// respondJob writes a job with its fit, a 404 for a missing or someone else's
+// job, or a 500.
 func (s *Server) respondJob(w http.ResponseWriter, r *http.Request, job store.Job, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
@@ -192,7 +202,12 @@ func (s *Server) respondJob(w http.ResponseWriter, r *http.Request, job store.Jo
 	case err != nil:
 		serverError(w, r, err)
 	default:
-		writeJSON(w, http.StatusOK, job)
+		prof, err := s.store.Profile(r.Context(), userID(r))
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, withFit(job, prof))
 	}
 }
 

@@ -64,6 +64,17 @@ the AI endpoints return `503`.
   degree. The prompt says to report only what the posting states; anything
   missing comes back as null, empty or "unknown". Server-side fallbacks are on,
   so if the model declines, the API retries on a fallback model in the same call.
+- **Fit score and hard filters.** Plain code, not a model call, so the same
+  inputs always give the same score. The profile page holds your skills,
+  years of experience, locations, accepted work modes and minimum pay. Each
+  parsed job gets a 0 to 100 score: required skills 60, nice-to-have skills 10,
+  experience 20, location 10. A part only counts when both the posting and the
+  profile state it. Common spellings match (Golang and Go, Postgres and
+  PostgreSQL). Hard filters flag a job whose stated pay is below your minimum
+  (same currency and period only, never converted), whose work mode you don't
+  accept, or that asks for more than 2 years beyond your experience. Unknown
+  values never trigger a filter. The score is computed on read, so it follows
+  profile edits.
 - **Model-call log.** Every call is a row in `model_calls`: feature, model that
   answered, input and output tokens, latency, and whether it succeeded.
 - **Eval.** `go run ./cmd/parse-eval` (in `apps/api`) runs the parser over
@@ -92,7 +103,13 @@ All bodies are JSON. Everything except `/health` and `/auth/*` needs
 | GET | `/jobs/{id}/history` | Status changes, oldest first |
 | GET | `/reminders` | Open follow-up reminders (applied 7+ days, no change) |
 | POST | `/reminders/{id}/dismiss` | Dismiss a reminder |
+| GET | `/profile` | Your profile (empty until first saved) |
+| PUT | `/profile` | `{skills, experienceYears, locations, workModes, minPay, payCurrency, payPeriod}` |
 | POST | `/jobs/{id}/parse` | Run the posting parser on the description; result in the job's `parsed` field. `503` without an API key, `422` if the model declines, `502` if the call fails |
+
+Job responses include `parsed` (parser output or null) and `fit`
+(`{score, matchedSkills, missingSkills, matchedPreferred, filters, reasons}`,
+null until parsed).
 
 Job fields: `company`, `title`, `description` (required), `location`, `url`
 (http/https), `platform`, `salaryMin`, `salaryMax`, `currency` (3 letters), `notes`.

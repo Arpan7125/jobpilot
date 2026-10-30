@@ -9,6 +9,9 @@ export function AppHeader() {
           JobPilot
         </Link>
         <nav className="flex items-center gap-4 text-sm">
+          <Link href="/profile" className="text-gray-600 hover:text-gray-900">
+            Profile
+          </Link>
           <Link href="/jobs/new" className="rounded-md bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700">
             Add job
           </Link>
