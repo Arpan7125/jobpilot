@@ -3,6 +3,10 @@
 Job application tracker with an AI agent that scores job fit and drafts tailored
 resumes for your approval. Built over four weeks; this is Week 1 (full-stack foundation).
 
+**Live:** https://jobpilot-web-zj21.onrender.com (API health:
+https://jobpilot-api-m9bp.onrender.com/health). Hosted on Render's free plan, so
+the first request after a quiet spell takes up to a minute while it wakes.
+
 ## Stack
 
 - `apps/api`: Go 1.26, chi, pgx, goose migrations, JWT (HS256) + bcrypt
@@ -38,6 +42,14 @@ cd ../.. && npm install && npm run dev:web   # http://localhost:3000
 The web app reads `API_URL` (default `http://localhost:4000`). With both apps
 running, `node apps/web/e2e/smoke.cjs` drives the main flows in a real browser
 (sign up, add, move on the board, edit, delete, log out, log in).
+
+## Deployment
+
+Render, Singapore region, free plan: a Go web service (`apps/api`), a Node web
+service (`apps/web`) and Postgres 16. Both services deploy on every push.
+Secrets (`DATABASE_URL`, `JWT_SECRET`) live in Render's environment settings,
+never in the repo. The API runs its migrations on startup. `render.yaml`
+describes the same setup as a Blueprint.
 
 ## API
 
