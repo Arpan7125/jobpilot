@@ -1,0 +1,9 @@
+{
+  "name": "jobpilot",
+  "private": true,
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "dev:web": "npm run dev -w apps/web"
+  }
+}
