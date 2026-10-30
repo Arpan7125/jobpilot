@@ -8,9 +8,10 @@ import { LocalTime } from "@/components/local-time";
 import { ParseForm } from "@/components/parse-form";
 import { ParsedPosting } from "@/components/parsed-posting";
 import { StatusForm } from "@/components/status-form";
+import { TailorButton, TailoringReview } from "@/components/tailoring";
 import { deleteJob, updateJob } from "@/lib/actions";
 import { api, ApiError } from "@/lib/api";
-import { STATUS_LABELS, type Job, type StatusChange } from "@/lib/types";
+import { STATUS_LABELS, type Job, type StatusChange, type Tailoring } from "@/lib/types";
 
 export default function JobPage({ params, searchParams }: PageProps<"/jobs/[id]">) {
   return (
@@ -29,11 +30,12 @@ async function JobDetail({ params, searchParams }: Pick<PageProps<"/jobs/[id]">,
   const { id } = await params;
   const editing = (await searchParams).edit === "1";
 
-  let job: Job, history: StatusChange[];
+  let job: Job, history: StatusChange[], tailoring: Tailoring | null;
   try {
-    [job, history] = await Promise.all([
+    [job, history, tailoring] = await Promise.all([
       api<Job>(`/jobs/${id}`),
       api<StatusChange[]>(`/jobs/${id}/history`),
+      api<Tailoring | null>(`/jobs/${id}/tailoring`),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -114,6 +116,19 @@ async function JobDetail({ params, searchParams }: Pick<PageProps<"/jobs/[id]">,
           <FitPanel fit={job.fit} />
         </section>
       )}
+
+      <section className="rounded-lg border border-gray-200 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-gray-900">Tailor your resume</h2>
+            <p className="text-xs text-gray-500">
+              Rewordings of your own resume lines for this job. Nothing is applied until you approve it.
+            </p>
+          </div>
+          <TailorButton key={tailoring?.id ?? "none"} jobId={job.id} again={tailoring != null} />
+        </div>
+        {tailoring && <TailoringReview jobId={job.id} tailoring={tailoring} />}
+      </section>
 
       <section>
         <h2 className="mb-2 font-semibold text-gray-900">History</h2>

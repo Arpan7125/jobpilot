@@ -50,3 +50,9 @@ users 1──* jobs 1──1 applications 1──* application_status_history
   stored as the user typed them; the app never adds one. Fit scores are not
   stored: they are computed from `jobs.parsed` and the profile on every read,
   so editing the profile updates every score at once.
+- **`tailorings` keep suggestions with the resume they were made from** (Day 10).
+  Each suggestion carries its own status (pending, approved, rejected) in the
+  JSONB array; blocked suggestions are kept beside them with the reason. The
+  tailored resume is never stored: it is the saved resume with approved lines
+  swapped in, computed on read. If the profile resume changes, the old
+  tailoring is flagged stale rather than silently re-applied.

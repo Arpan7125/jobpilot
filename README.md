@@ -75,6 +75,16 @@ the AI endpoints return `503`.
   accept, or that asks for more than 2 years beyond your experience. Unknown
   values never trigger a filter. The score is computed on read, so it follows
   profile edits.
+- **Resume tailoring with approval.** Paste your resume on the profile page.
+  "Tailor my resume" on a job asks Claude for rewordings of your existing
+  lines for that posting, plus the lines to lead with. The model may only
+  reorder or rephrase. Code then checks every suggestion and blocks any that
+  quotes a line not in your resume, adds a number the original line doesn't
+  state, or names a skill your resume doesn't mention (checked against a watch
+  list of common tech skills, the alias table, and the posting's parsed
+  skills). Blocked suggestions are shown with the reason. Each surviving
+  suggestion waits for Approve or Reject; the tailored resume only changes for
+  approved ones, and you copy it yourself. Nothing is sent anywhere.
 - **Model-call log.** Every call is a row in `model_calls`: feature, model that
   answered, input and output tokens, latency, and whether it succeeded.
 - **Eval.** `go run ./cmd/parse-eval` (in `apps/api`) runs the parser over
@@ -105,6 +115,9 @@ All bodies are JSON. Everything except `/health` and `/auth/*` needs
 | POST | `/reminders/{id}/dismiss` | Dismiss a reminder |
 | GET | `/profile` | Your profile (empty until first saved) |
 | PUT | `/profile` | `{skills, experienceYears, locations, workModes, minPay, payCurrency, payPeriod}` |
+| POST | `/jobs/{id}/tailor` | Suggest rewordings of the profile resume for this job; guarded, all `pending`. `422` without a resume |
+| GET | `/jobs/{id}/tailoring` | Latest suggestions, blocked ones with reasons, and the resume with approved ones applied (null if none) |
+| PUT | `/jobs/{id}/tailoring/suggestions/{n}` | `{status: approved\|rejected\|pending}` |
 | POST | `/jobs/{id}/parse` | Run the posting parser on the description; result in the job's `parsed` field. `503` without an API key, `422` if the model declines, `502` if the call fails |
 
 Job responses include `parsed` (parser output or null) and `fit`

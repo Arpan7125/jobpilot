@@ -88,6 +88,20 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           {f.payPeriod && <span className="mt-1 block text-xs text-red-600">{f.payPeriod}</span>}
         </label>
       </div>
+      <label className="block text-sm">
+        <span className="mb-1 block font-medium text-gray-700">Resume</span>
+        <textarea
+          name="resume"
+          rows={14}
+          placeholder="Paste your resume as plain text, one bullet per line"
+          defaultValue={v?.resume ?? profile.resume}
+          className={`${inputClass} font-mono`}
+        />
+        <span className="mt-1 block text-xs text-gray-500">
+          Used for tailoring. Suggestions only reword lines that are already here.
+        </span>
+        {f.resume && <span className="mt-1 block text-xs text-red-600">{f.resume}</span>}
+      </label>
       <Button type="submit" disabled={pending}>
         Save profile
       </Button>

@@ -182,3 +182,28 @@ func Normalize(skill string) string {
 	}
 	return s
 }
+
+// common is a watch list of widely used tech skills, so code that looks for
+// skill names in free text doesn't depend on a parsed posting.
+var common = []string{
+	"go", "python", "java", "javascript", "typescript", "c++", "c#", "rust", "ruby", "php", "kotlin", "swift",
+	"scala", "sql", "bash", "html", "css", "tailwind", "sass",
+	"react", "next.js", "vue", "angular", "svelte", "node.js", "express", "django", "flask", "fastapi", "spring",
+	"spring boot", "rails", "laravel", ".net", "graphql", "grpc", "rest api", "websockets",
+	"postgresql", "mysql", "sqlite", "mongodb", "redis", "elasticsearch", "cassandra", "dynamodb", "kafka",
+	"rabbitmq", "docker", "kubernetes", "terraform", "ansible", "helm", "jenkins", "github actions", "gitlab ci",
+	"aws", "google cloud", "azure", "linux", "nginx", "git", "prometheus", "grafana", "datadog",
+	"pytorch", "tensorflow", "pandas", "numpy", "scikit-learn", "spark", "hadoop", "airflow", "llm", "langchain",
+	"jwt", "oauth", "microservices", "ci/cd", "unit testing", "selenium", "playwright", "jest", "cypress",
+	"figma", "android", "ios", "flutter", "react native",
+}
+
+// KnownSkills lists the watch list and every spelling in the alias table, for
+// code that needs to spot skill names in free text.
+func KnownSkills() []string {
+	out := slices.Clone(common)
+	for k, v := range aliases {
+		out = append(out, k, v)
+	}
+	return out
+}

@@ -19,6 +19,7 @@ type fakeClaude struct {
 	text       string
 	body       map[string]any
 	header     http.Header
+	url        string
 }
 
 func (f *fakeClaude) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,7 @@ func (f *fakeClaude) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func newTestParser(t *testing.T, f *fakeClaude) *ClaudeParser {
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
+	f.url = srv.URL
 	return NewClaudeParser(option.WithBaseURL(srv.URL), option.WithAPIKey("test-key"), option.WithMaxRetries(0))
 }
 
