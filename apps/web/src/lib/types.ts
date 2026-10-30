@@ -29,6 +29,7 @@ export type Job = {
   followUpDue: boolean;
   parsed: ParsedPosting | null;
   parsedAt: string | null;
+  fit: Fit | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,6 +48,31 @@ export type ParsedPosting = {
   locations: string[];
   workMode: "onsite" | "hybrid" | "remote" | "unknown";
   degree: string | null;
+};
+
+// How a parsed job matches the profile. score is null when there's not
+// enough on either side to compare.
+export type Fit = {
+  score: number | null;
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedPreferred: string[];
+  filters: string[];
+  reasons: string[];
+};
+
+export const WORK_MODES = ["onsite", "hybrid", "remote"] as const;
+export const PAY_PERIODS = ["month", "year", "hour", "total"] as const;
+
+export type Profile = {
+  skills: string[];
+  experienceYears: number | null;
+  locations: string[];
+  workModes: (typeof WORK_MODES)[number][];
+  minPay: number | null;
+  payCurrency: string | null;
+  payPeriod: (typeof PAY_PERIODS)[number] | null;
+  updatedAt: string | null;
 };
 
 export type StatusChange = {
@@ -71,5 +97,5 @@ export type User = { id: string; email: string; name: string | null };
 // echoes the submitted fields, because React resets a form after its action
 // runs and the user would otherwise lose what they typed.
 export type FormState =
-  | { error?: string; fields?: Record<string, string>; values?: Record<string, string> }
+  | { error?: string; fields?: Record<string, string>; values?: Record<string, string>; message?: string }
   | undefined;

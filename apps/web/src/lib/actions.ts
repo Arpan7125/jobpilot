@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { api, ApiError, clearToken, setToken } from "./api";
-import type { FormState, Job, User } from "./types";
+import type { FormState, Job, Profile, User } from "./types";
 
 function failure(err: unknown, form: FormData): FormState {
   if (err instanceof ApiError) {
@@ -116,6 +116,35 @@ export async function parseJob(id: string): Promise<FormState> {
   }
   revalidatePath(`/jobs/${id}`);
   return undefined;
+}
+
+// Comma or newline separated text to a list.
+function list(form: FormData, key: string): string[] {
+  return text(form, key)
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export async function saveProfile(_: FormState, form: FormData): Promise<FormState> {
+  try {
+    await api<Profile>("/profile", {
+      method: "PUT",
+      body: JSON.stringify({
+        skills: list(form, "skills"),
+        experienceYears: number(form, "experienceYears"),
+        locations: list(form, "locations"),
+        workModes: form.getAll("workModes").map(String),
+        minPay: number(form, "minPay"),
+        payCurrency: text(form, "payCurrency") || null,
+        payPeriod: text(form, "payPeriod") || null,
+      }),
+    });
+  } catch (err) {
+    return failure(err, form);
+  }
+  revalidatePath("/", "layout");
+  return { message: "Profile saved. Fit scores now use it." };
 }
 
 export async function deleteJob(id: string) {

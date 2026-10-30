@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
+import { FitBadge } from "@/components/fit-panel";
 import { LocalTime } from "@/components/local-time";
 import { StatusForm } from "@/components/status-form";
 import { api } from "@/lib/api";
@@ -53,6 +54,7 @@ async function Board() {
                       <p className="text-sm font-medium text-gray-900">{job.title}</p>
                       <p className="text-xs text-gray-600">{job.company}</p>
                     </Link>
+                    <FitBadge fit={job.fit} />
                     {job.followUpDue && (
                       <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
                         Follow up

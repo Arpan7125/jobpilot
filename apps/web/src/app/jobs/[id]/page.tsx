@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
+import { FitPanel } from "@/components/fit-panel";
 import { JobForm } from "@/components/job-form";
 import { LocalTime } from "@/components/local-time";
 import { ParseForm } from "@/components/parse-form";
@@ -106,6 +107,13 @@ async function JobDetail({ params, searchParams }: Pick<PageProps<"/jobs/[id]">,
         </div>
         {job.parsed && <ParsedPosting parsed={job.parsed} />}
       </section>
+
+      {job.fit && (
+        <section className="rounded-lg border border-gray-200 p-4">
+          <h2 className="mb-3 font-semibold text-gray-900">Fit with your profile</h2>
+          <FitPanel fit={job.fit} />
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 font-semibold text-gray-900">History</h2>

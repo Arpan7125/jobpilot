@@ -80,3 +80,50 @@ func TestParseWithoutKey(t *testing.T) {
 		t.Errorf("parse without parser = %d, want 503", code)
 	}
 }
+
+func TestProfileAndFit(t *testing.T) {
+	min := 0
+	fake := &fakeParser{result: agent.Posting{
+		RequiredSkills: []string{"Go", "PostgreSQL"}, Experience: agent.Range{Min: &min}, WorkMode: "onsite",
+	}}
+	c := signedIn(t)
+	c.h = newClientWithParser(t, fake).h
+
+	var prof map[string]any
+	if code := c.do("GET", "/profile", nil, &prof); code != 200 || prof["updatedAt"] != nil {
+		t.Fatalf("empty profile = %d %v", code, prof)
+	}
+	var verr struct{ Fields map[string]string }
+	if code := c.do("PUT", "/profile", map[string]any{"workModes": []string{"moon"}, "minPay": 100}, &verr); code != 422 ||
+		verr.Fields["workModes"] == "" || verr.Fields["minPay"] == "" {
+		t.Errorf("bad profile = %d %v", code, verr.Fields)
+	}
+	body := map[string]any{"skills": []string{" golang ", "Go", "Docker", ""}, "experienceYears": 0, "workModes": []string{"Remote"}}
+	if code := c.do("PUT", "/profile", body, &prof); code != 200 {
+		t.Fatalf("save profile = %d %v", code, prof)
+	}
+	if skills := prof["skills"].([]any); len(skills) != 3 { // trimmed, empty dropped; "Go" differs from "golang" as text
+		t.Errorf("skills = %v", skills)
+	}
+
+	var job map[string]any
+	c.do("POST", "/jobs", validJob(), &job)
+	if job["fit"] != nil {
+		t.Errorf("unparsed job fit = %v, want null", job["fit"])
+	}
+	id := job["id"].(string)
+	c.do("POST", "/jobs/"+id+"/parse", nil, &job)
+	f := job["fit"].(map[string]any)
+	// 1 of 2 required skills (30/60) + experience met (20/20) = 50/80 → 63
+	if f["score"] != float64(63) {
+		t.Errorf("fit = %v", f)
+	}
+	if filters := f["filters"].([]any); len(filters) != 1 { // onsite job, user wants remote
+		t.Errorf("filters = %v", filters)
+	}
+	var list []map[string]any
+	c.do("GET", "/jobs", nil, &list)
+	if list[0]["fit"] == nil {
+		t.Error("list is missing fit")
+	}
+}

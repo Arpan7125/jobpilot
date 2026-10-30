@@ -57,6 +57,8 @@ func (s *Server) Handler() http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireAuth)
 		r.Get("/me", s.me)
+		r.Get("/profile", s.getProfile)
+		r.Put("/profile", s.putProfile)
 		r.Get("/reminders", s.listReminders)
 		r.Post("/reminders/{reminderID}/dismiss", s.dismissReminder)
 		r.Route("/jobs", func(r chi.Router) {
