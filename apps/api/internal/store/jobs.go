@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -30,8 +31,11 @@ type Job struct {
 	StatusChangedAt time.Time  `json:"statusChangedAt"`
 	Notes           *string    `json:"notes"`
 	FollowUpDue     bool       `json:"followUpDue"` // has an open reminder
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	// Parsed is the posting parser's output (agent.Posting), null until parsed.
+	Parsed    json.RawMessage `json:"parsed"`
+	ParsedAt  *time.Time      `json:"parsedAt"`
+	CreatedAt time.Time       `json:"createdAt"`
+	UpdatedAt time.Time       `json:"updatedAt"`
 }
 
 type StatusChange struct {
@@ -45,7 +49,7 @@ const jobColumns = `j.id, j.company, j.title, j.location, j.url, j.platform, j.d
 	j.salary_min, j.salary_max, j.currency,
 	a.status, a.applied_at, a.status_changed_at, a.notes,
 	EXISTS (SELECT 1 FROM reminders r WHERE r.application_id = a.id AND r.dismissed_at IS NULL),
-	j.created_at, j.updated_at`
+	j.parsed, j.parsed_at, j.created_at, j.updated_at`
 
 const jobFrom = ` FROM jobs j JOIN applications a ON a.job_id = j.id `
 
@@ -53,7 +57,7 @@ func scanJob(row pgx.Row) (Job, error) {
 	var j Job
 	err := row.Scan(&j.ID, &j.Company, &j.Title, &j.Location, &j.URL, &j.Platform, &j.Description,
 		&j.SalaryMin, &j.SalaryMax, &j.Currency,
-		&j.Status, &j.AppliedAt, &j.StatusChangedAt, &j.Notes, &j.FollowUpDue, &j.CreatedAt, &j.UpdatedAt)
+		&j.Status, &j.AppliedAt, &j.StatusChangedAt, &j.Notes, &j.FollowUpDue, &j.Parsed, &j.ParsedAt, &j.CreatedAt, &j.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Job{}, ErrNotFound
 	}
@@ -181,6 +185,23 @@ func (s *Store) SetStatus(ctx context.Context, userID, jobID, status string, not
 	})
 	if err != nil {
 		return Job{}, err
+	}
+	return s.Job(ctx, userID, jobID)
+}
+
+// SetParsed stores the parser output for one of the user's jobs.
+func (s *Store) SetParsed(ctx context.Context, userID, jobID string, parsed any) (Job, error) {
+	raw, err := json.Marshal(parsed)
+	if err != nil {
+		return Job{}, err
+	}
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE jobs SET parsed = $3, parsed_at = now() WHERE id = $1 AND user_id = $2`, jobID, userID, raw)
+	if err != nil {
+		return Job{}, err
+	}
+	if tag.RowsAffected() == 0 {
+		return Job{}, ErrNotFound
 	}
 	return s.Job(ctx, userID, jobID)
 }

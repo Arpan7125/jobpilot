@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
 import { JobForm } from "@/components/job-form";
 import { LocalTime } from "@/components/local-time";
+import { ParseForm } from "@/components/parse-form";
+import { ParsedPosting } from "@/components/parsed-posting";
 import { StatusForm } from "@/components/status-form";
 import { deleteJob, updateJob } from "@/lib/actions";
 import { api, ApiError } from "@/lib/api";
@@ -84,6 +86,25 @@ async function JobDetail({ params, searchParams }: Pick<PageProps<"/jobs/[id]">,
       <section className="rounded-lg border border-gray-200 p-4">
         {/* keyed so the select resets to the new status after a change */}
         <StatusForm key={job.status} jobId={job.id} status={job.status} />
+      </section>
+
+      <section className="rounded-lg border border-gray-200 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-gray-900">Parsed by AI</h2>
+            <p className="text-xs text-gray-500">
+              {job.parsedAt ? (
+                <>
+                  Parsed <LocalTime iso={job.parsedAt} />. Check it against the posting below.
+                </>
+              ) : (
+                "Pull the role, skills, experience and pay out of the posting text."
+              )}
+            </p>
+          </div>
+          <ParseForm key={job.parsedAt ?? "none"} jobId={job.id} parsed={job.parsed != null} />
+        </div>
+        {job.parsed && <ParsedPosting parsed={job.parsed} />}
       </section>
 
       <section>

@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Arpan7125/jobpilot/apps/api/internal/agent"
 	"github.com/Arpan7125/jobpilot/apps/api/internal/auth"
 	"github.com/Arpan7125/jobpilot/apps/api/internal/db"
 	"github.com/Arpan7125/jobpilot/apps/api/internal/store"
@@ -58,11 +59,15 @@ type client struct {
 }
 
 func newClient(t *testing.T) *client {
+	return newClientWithParser(t, nil)
+}
+
+func newClientWithParser(t *testing.T, p agent.Parser) *client {
 	tokens, err := auth.NewTokens("test-secret-that-is-at-least-32-characters")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &client{t: t, h: New(store.New(testPool), tokens, []string{"http://localhost:3000"}).Handler()}
+	return &client{t: t, h: New(store.New(testPool), tokens, []string{"http://localhost:3000"}, p).Handler()}
 }
 
 // do sends a request and decodes a JSON response into out (if non-nil).

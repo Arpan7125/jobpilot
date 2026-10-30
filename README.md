@@ -47,9 +47,29 @@ running, `node apps/web/e2e/smoke.cjs` drives the main flows in a real browser
 
 Render, Singapore region, free plan: a Go web service (`apps/api`), a Node web
 service (`apps/web`) and Postgres 16. Both services deploy on every push.
-Secrets (`DATABASE_URL`, `JWT_SECRET`) live in Render's environment settings,
+Secrets (`DATABASE_URL`, `JWT_SECRET`, `ANTHROPIC_API_KEY`) live in Render's environment settings,
 never in the repo. The API runs its migrations on startup. `render.yaml`
 describes the same setup as a Blueprint.
+
+## AI features (Week 2)
+
+The AI features call Claude (`claude-opus-5-5`) through the official Go SDK.
+They are optional: without `ANTHROPIC_API_KEY` the rest of the app works and
+the AI endpoints return `503`.
+
+- **Posting parser.** "Parse posting" on a job page sends the posting text to
+  Claude with a JSON schema (structured outputs), so the reply always has the
+  same shape: role, company, seniority, employment type, required and
+  nice-to-have skills, years of experience, pay, locations, work mode and
+  degree. The prompt says to report only what the posting states; anything
+  missing comes back as null, empty or "unknown". Server-side fallbacks are on,
+  so if the model declines, the API retries on a fallback model in the same call.
+- **Model-call log.** Every call is a row in `model_calls`: feature, model that
+  answered, input and output tokens, latency, and whether it succeeded.
+- **Eval.** `go run ./cmd/parse-eval` (in `apps/api`) runs the parser over
+  real postings in `apps/api/evals/postings` and scores it against hand-checked
+  answers. See the README there. No accuracy numbers are published until that
+  run happens on real postings.
 
 ## API
 
@@ -72,6 +92,7 @@ All bodies are JSON. Everything except `/health` and `/auth/*` needs
 | GET | `/jobs/{id}/history` | Status changes, oldest first |
 | GET | `/reminders` | Open follow-up reminders (applied 7+ days, no change) |
 | POST | `/reminders/{id}/dismiss` | Dismiss a reminder |
+| POST | `/jobs/{id}/parse` | Run the posting parser on the description; result in the job's `parsed` field. `503` without an API key, `422` if the model declines, `502` if the call fails |
 
 Job fields: `company`, `title`, `description` (required), `location`, `url`
 (http/https), `platform`, `salaryMin`, `salaryMax`, `currency` (3 letters), `notes`.

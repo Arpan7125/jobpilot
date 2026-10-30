@@ -38,3 +38,10 @@ users 1──* jobs 1──1 applications 1──* application_status_history
   does not return until the status changes again, and any status change closes
   the open one. The job is idempotent, so restarts or extra runs are harmless.
 - **Database checks back up the API:** non-negative salaries, `salary_min <= salary_max`.
+- **Parser output lives on `jobs.parsed` (JSONB) with `parsed_at`** (Week 2). It
+  is the model's reading of the posting, kept separate from the fields the user
+  typed, so a bad parse never overwrites them. A re-parse replaces it; a failed
+  or declined parse leaves the previous result in place.
+- **`model_calls` logs every LLM request:** user, job, feature, model that
+  answered, token counts, latency, success and error text. Jobs deleted later
+  keep their call rows (`job_id` set to null) so cost totals stay correct.

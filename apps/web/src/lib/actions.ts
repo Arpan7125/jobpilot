@@ -107,6 +107,17 @@ export async function setStatus(id: string, _: FormState, form: FormData): Promi
   return undefined;
 }
 
+export async function parseJob(id: string): Promise<FormState> {
+  try {
+    await api<Job>(`/jobs/${id}/parse`, { method: "POST" });
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
+  revalidatePath(`/jobs/${id}`);
+  return undefined;
+}
+
 export async function deleteJob(id: string) {
   await api(`/jobs/${id}`, { method: "DELETE" });
   revalidatePath("/");
