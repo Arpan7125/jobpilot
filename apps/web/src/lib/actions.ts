@@ -138,6 +138,7 @@ export async function saveProfile(_: FormState, form: FormData): Promise<FormSta
         minPay: number(form, "minPay"),
         payCurrency: text(form, "payCurrency") || null,
         payPeriod: text(form, "payPeriod") || null,
+        resume: String(form.get("resume") ?? ""),
       }),
     });
   } catch (err) {
@@ -145,6 +146,22 @@ export async function saveProfile(_: FormState, form: FormData): Promise<FormSta
   }
   revalidatePath("/", "layout");
   return { message: "Profile saved. Fit scores now use it." };
+}
+
+export async function tailorJob(id: string): Promise<FormState> {
+  try {
+    await api(`/jobs/${id}/tailor`, { method: "POST" });
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
+  revalidatePath(`/jobs/${id}`);
+  return undefined;
+}
+
+export async function decideSuggestion(id: string, n: number, status: "approved" | "rejected" | "pending") {
+  await api(`/jobs/${id}/tailoring/suggestions/${n}`, { method: "PUT", body: JSON.stringify({ status }) });
+  revalidatePath(`/jobs/${id}`);
 }
 
 export async function deleteJob(id: string) {

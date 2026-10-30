@@ -51,17 +51,21 @@ func run() error {
 	go flagFollowUps(ctx, st, 24*time.Hour)
 
 	// The AI features are optional: without a key the rest of the API still works.
-	var parser agent.Parser
+	var (
+		parser   agent.Parser
+		tailorer agent.Tailorer
+	)
 	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		parser = agent.NewClaudeParser()
+		parser, tailorer = agent.NewClaudeParser(), agent.NewClaudeTailorer()
+		slog.Info("AI features enabled", "model", agent.Model)
 	} else {
-		slog.Warn("ANTHROPIC_API_KEY is not set, posting parser disabled")
+		slog.Warn("ANTHROPIC_API_KEY is not set, AI features disabled")
 	}
 
 	origins := strings.Split(envOr("CORS_ORIGINS", "http://localhost:3000"), ",")
 	srv := &http.Server{
 		Addr:              ":" + envOr("PORT", "4000"),
-		Handler:           httpapi.New(st, tokens, origins, parser).Handler(),
+		Handler:           httpapi.New(st, tokens, origins, parser, tailorer).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -19,11 +19,13 @@ type Server struct {
 	store       *store.Store
 	tokens      *auth.Tokens
 	corsOrigins []string
-	parser      agent.Parser // nil when ANTHROPIC_API_KEY is not set
+	// The AI features are nil when ANTHROPIC_API_KEY is not set.
+	parser   agent.Parser
+	tailorer agent.Tailorer
 }
 
-func New(s *store.Store, t *auth.Tokens, corsOrigins []string, parser agent.Parser) *Server {
-	return &Server{store: s, tokens: t, corsOrigins: corsOrigins, parser: parser}
+func New(s *store.Store, t *auth.Tokens, corsOrigins []string, parser agent.Parser, tailorer agent.Tailorer) *Server {
+	return &Server{store: s, tokens: t, corsOrigins: corsOrigins, parser: parser, tailorer: tailorer}
 }
 
 // Model calls take longer than plain CRUD, so they get their own deadline.
@@ -35,7 +37,7 @@ const (
 func timeouts(next http.Handler) http.Handler {
 	short, long := middleware.Timeout(requestTimeout)(next), middleware.Timeout(modelTimeout)(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/parse") {
+		if r.Method == http.MethodPost && (strings.HasSuffix(r.URL.Path, "/parse") || strings.HasSuffix(r.URL.Path, "/tailor")) {
 			long.ServeHTTP(w, r)
 			return
 		}
@@ -72,6 +74,9 @@ func (s *Server) Handler() http.Handler {
 				r.Put("/status", s.setStatus)
 				r.Get("/history", s.history)
 				r.Post("/parse", s.parseJob)
+				r.Post("/tailor", s.tailorJob)
+				r.Get("/tailoring", s.getTailoring)
+				r.Put("/tailoring/suggestions/{n}", s.decideSuggestion)
 			})
 		})
 	})

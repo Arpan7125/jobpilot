@@ -44,6 +44,10 @@ func (s *Server) putProfile(w http.ResponseWriter, r *http.Request) {
 			errs["workModes"] = "each must be onsite, hybrid or remote"
 		}
 	}
+	in.Resume = strings.TrimSpace(strings.ReplaceAll(in.Resume, "\r\n", "\n"))
+	if utf8.RuneCountInString(in.Resume) > 30_000 {
+		errs["resume"] = "is too long"
+	}
 	if in.ExperienceYears != nil && (*in.ExperienceYears < 0 || *in.ExperienceYears > 60) {
 		errs["experienceYears"] = "must be between 0 and 60"
 	}

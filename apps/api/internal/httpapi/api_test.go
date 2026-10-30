@@ -63,11 +63,15 @@ func newClient(t *testing.T) *client {
 }
 
 func newClientWithParser(t *testing.T, p agent.Parser) *client {
+	return newClientWithAI(t, p, nil)
+}
+
+func newClientWithAI(t *testing.T, p agent.Parser, tl agent.Tailorer) *client {
 	tokens, err := auth.NewTokens("test-secret-that-is-at-least-32-characters")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &client{t: t, h: New(store.New(testPool), tokens, []string{"http://localhost:3000"}, p).Handler()}
+	return &client{t: t, h: New(store.New(testPool), tokens, []string{"http://localhost:3000"}, p, tl).Handler()}
 }
 
 // do sends a request and decodes a JSON response into out (if non-nil).

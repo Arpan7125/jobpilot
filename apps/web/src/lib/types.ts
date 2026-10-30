@@ -72,7 +72,26 @@ export type Profile = {
   minPay: number | null;
   payCurrency: string | null;
   payPeriod: (typeof PAY_PERIODS)[number] | null;
+  resume: string;
   updatedAt: string | null;
+};
+
+export type Suggestion = {
+  original: string;
+  rewritten: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+};
+
+// Resume suggestions for one job, waiting for the user's decisions.
+export type Tailoring = {
+  id: string;
+  createdAt: string;
+  suggestions: Suggestion[];
+  dropped: { original: string; rewritten: string; why: string }[];
+  relevant: string[];
+  tailored: string;
+  stale: boolean;
 };
 
 export type StatusChange = {
